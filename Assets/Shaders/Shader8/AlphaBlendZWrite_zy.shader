@@ -1,10 +1,10 @@
-﻿Shader "Unity Shaders Book/Chapter 8/SEEDzy/Alpha Test"
+﻿Shader "Unity Shaders Book/Chapter 8/SEEDzy/Alpha BlendZWrite"
 {
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
-        _CutOff ("Alpha_CutOff",Range(0,1)) = 0.5
-        _Color ("Main_Tint", Color) = (1,1,1,1)
+        _AlphaScale ("Alpha Scale",Range(0,1)) = 0.5
+        _Color ("Main Tint", Color) = (1,1,1,1)
         
         
     }
@@ -12,14 +12,23 @@
     {
         //renderType：? ignoreProjector：当前shader不会受到投影器影响(Projectors)
         //通常使用透明度测试都应使用这三个标签
-        Tags { "RenderType"="TransparentCutout" "Queue" = "AlphaTest" "IgnoreProjector" = "True"}
+        Tags { "RenderType"="Transparent" "Queue" = "Transparent" "IgnoreProjector" = "True"}
         LOD 100
-
+        //该pass写入模型深度信息
+        Pass
+        {
+            ZWrite On
+            //设置颜色通道谢掩码
+            ColorMask 0
+        }
+        
+        
         Pass
         {
             Tags {"LightMode" = "ForwardBase"}
-            //关闭剔除
-            Cull Off
+            Zwrite Off
+            //Cull Off 
+            Blend SrcAlpha OneMinusSrcAlpha
             
             CGPROGRAM
             #pragma vertex vert
@@ -40,7 +49,7 @@
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
-            fixed _CutOff;
+            fixed _AlphaScale;
             fixed4 _Color;
 
             v2f vert (appdata_base v)
@@ -63,17 +72,16 @@
                 //获得世界空间坐标点到光源处方向
                 float3 worldLightDir = normalize(UnityWorldSpaceLightDir(i.worldPos));
                 // sample the texture
-                fixed4 col = tex2D(_MainTex, i.uv);
-                //alpha剔除
-                clip(col.a - _CutOff);
+                fixed4 texcol = tex2D(_MainTex, i.uv);
+
                 //材质反射率反射率？
-                fixed3 albedo = col.rgb * _Color;
+                fixed3 albedo = texcol.rgb * _Color;
                 
                 fixed3 ambient = albedo * UNITY_LIGHTMODEL_AMBIENT.rgb;
 
-                fixed3 diffuse = _LightColor0 * saturate(dot(worldLightDir,worldNormal))* albedo;
+                fixed3 diffuse = _LightColor0 * saturate(dot(worldLightDir,worldNormal)) * albedo;
                 
-                return fixed4(ambient + diffuse,1.0);
+                return fixed4(ambient + diffuse,texcol.a * _AlphaScale);
                 
             }
             ENDCG
