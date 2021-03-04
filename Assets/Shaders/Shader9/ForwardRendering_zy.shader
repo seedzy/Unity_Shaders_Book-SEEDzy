@@ -89,7 +89,7 @@
 
             #include "UnityCG.cginc"
             #include "Lighting.cginc"
-            #include "AutoLight.cginc"
+            #include "UnityDeferredLibrary.cginc"
 
             struct a2v
             {
@@ -144,7 +144,7 @@
                 #ifdef USING_DIRECTIONAL_LIGHT
                     fixed atten = 1.0;
                 #else
-                    float3 lightCoord = mul(light, float4(i.worldPos, 1)).xyz;
+                    float3 lightCoord = mul(unity_WorldToLight, float4(i.worldPos, 1)).xyz;
 				    fixed atten = tex2D(_LightTexture0, dot(lightCoord, lightCoord).rr).UNITY_ATTEN_CHANNEL;
                 #endif
 
@@ -157,5 +157,7 @@
             
             ENDCG
         }
+        
     }
+    FallBack "Specular"
 }
