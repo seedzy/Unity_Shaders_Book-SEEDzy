@@ -22,6 +22,7 @@
 
             #include "UnityCG.cginc"
             #include "Lighting.cginc"
+            #include "AutoLight.cginc"
 
             struct a2v
             {
@@ -31,9 +32,11 @@
 
             struct v2f
             {
-                float4 vertex : SV_POSITION;
+                float4 pos : SV_POSITION;
                 float3 worldNormal : TEXCOORD0;
                 float3 worldPos : TEXCOORD1;
+                //阴影纹理采样坐标
+                SHADOW_COORDS(2)
             };
 
 
@@ -44,9 +47,11 @@
             v2f vert (a2v v)
             {
                 v2f o;
-                o.vertex = UnityObjectToClipPos(v.vertex);
+                o.pos = UnityObjectToClipPos(v.vertex);
                 o.worldNormal = UnityObjectToWorldNormal(v.normal);
                 o.worldPos = mul(unity_ObjectToWorld,v.vertex);
+                //计算v2f结构中声明的阴影纹理坐标
+                TRANSFER_SHADOW(o);
 
                 return o;
             }
@@ -67,11 +72,12 @@
 
                 fixed3 specular = _Specular * _LightColor0 *pow(saturate(dot(halfNormalDir,worldNormalDir)),_Gloss);
                 //光照有颜色、强度、衰减、方向、位置五个属性
-
                 //平行光照无衰减，设置为1
                 fixed atten = 1.0;
+                //计算阴影值
+                fixed3 shadow = SHADOW_ATTENUATION(i);
                 
-                return fixed4(ambient + (diffuse + specular) * atten,1);
+                return fixed4(ambient + (diffuse + specular) * atten * shadow,1);
             }
             ENDCG
         }
@@ -99,7 +105,7 @@
 
             struct v2f
             {
-                float4 vertex : SV_POSITION;
+                float4 pos : SV_POSITION;
                 float3 worldNormal : TEXCOORD0;
                 float3 worldPos : TEXCOORD1;
             };
@@ -112,7 +118,7 @@
             v2f vert (a2v v)
             {
                 v2f o;
-                o.vertex = UnityObjectToClipPos(v.vertex);
+                o.pos = UnityObjectToClipPos(v.vertex);
                 o.worldNormal = UnityObjectToWorldNormal(v.normal);
                 o.worldPos = mul(unity_ObjectToWorld,v.vertex);
 
