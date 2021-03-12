@@ -7,6 +7,7 @@
         _Color("Color Tint",Color) = (1,1,1,1)
         _Alpha("Alpha",Range(0,100)) = 1
         _FelPow("菲涅尔强度",Range(0,100)) = 1
+        _DiffusePow("漫反射强度",Range(0,1)) = 0.5
     }
     SubShader
     {
@@ -45,7 +46,7 @@
             fixed4 _Color;
 
             float _FelPow;
-            
+            float _DiffusePow;
             
 
             float _Alpha;
@@ -53,18 +54,20 @@
             struct appdata
             {
                 float4 vertex : POSITION;
-                float2 uv : TEXCOORD0;
+                float4 uv : TEXCOORD0;
                 float3 normal : NORMAL;
+                float4 tangent : TANGENT;
             };
 
             struct v2f
             {
-                float2 uv : TEXCOORD0;
+                float4 uv : TEXCOORD0;
                 float4 pos : SV_POSITION;
                 float3 normal : TEXCOORD1;
                 float4 projPos : TEXCOORD2;
                 float3 objPos : TEXCOORD3;
-                UNITY_FOG_COORDS(4)
+                float4 tangent : TEXCOORD4;
+                UNITY_FOG_COORDS(5)
                 UNITY_VERTEX_OUTPUT_STEREO
             };
 
@@ -76,7 +79,11 @@
                 o.pos = UnityObjectToClipPos(v.vertex);
                 o.objPos = v.vertex;
                 o.normal = v.normal;
-                o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+                o.tangent = v.tangent;
+                
+                o.uv.xy = v.uv.xy * _MainTex_ST.xy + _MainTex_ST.zw;
+                o.uv.zw = v.uv.xy * _BumpTex_ST.xy + _BumpTex_ST.zw * _Time.y;
+                
                 UNITY_TRANSFER_FOG(o,o.vertex);
                 //将裁剪空间坐标点映射至 (0 , w)
                 o.projPos = ComputeScreenPos(o.pos);
@@ -106,19 +113,35 @@
             {
                 // sample the texture
                 fixed4 col = tex2D(_MainTex, i.uv);
-                
-                fixed3 worldNormalDir = normalize(UnityObjectToWorldNormal(i.normal));
+                fixed3 worldTangent = UnityObjectToWorldDir(i.tangent);
+                fixed3 worldNormal = UnityObjectToWorldNormal(i.normal);
+                fixed3 worldBinormal = cross(worldNormal, worldTangent) * i.tangent.w;
                 float3 worldPos = mul(unity_ObjectToWorld,i.objPos);
+
+            	float3 TtoW0 = float3(worldTangent.x, worldBinormal.x, worldNormal.x);
+				float3 TtoW1 = float3(worldTangent.y, worldBinormal.y, worldNormal.y);
+				float3 TtoW2 = float3(worldTangent.z, worldBinormal.z, worldNormal.z);
+                // Get the normal in tangent space
+				fixed3 bump = UnpackNormal(tex2D(_BumpTex, i.uv.zw));
+				// bump.xy *= _BumpScale;
+				// bump.z = sqrt(1.0 - saturate(dot(bump.xy, bump.xy)));
+				// Transform the narmal from tangent space to world space
+				bump = normalize(half3(dot(TtoW0.xyz, bump), dot(TtoW1.xyz, bump), dot(TtoW2.xyz, bump)));
+                
+                
+                fixed3 worldNormalDir = normalize(worldNormal);
                 float3 worldViewDir = -normalize(UnityWorldSpaceViewDir(worldPos));
-                fixed3 worldReflectDir = reflect(worldViewDir,worldNormalDir);
-                //fixed3 
+                fixed3 worldReflectDir = reflect(worldViewDir,bump);
+                fixed3 worldLightDir = normalize(UnityWorldSpaceLightDir(worldPos));
+                
+                
 
                 //水面反射
                 fixed4 reflectColHDR = UNITY_SAMPLE_TEXCUBE(unity_SpecCube0,worldReflectDir);
                 //将天空盒的HDR转常规RGB，如果有的话
                 fixed3 reflectCol = DecodeHDR(reflectColHDR,unity_SpecCube0_HDR);
-
-                //fixed3 diffuse = _LightColor0 * dot()
+                //漫反射
+                fixed3 diffuse = _LightColor0 * (0.5 * dot(worldLightDir,bump) + 0.5) * _DiffusePow;
                 
                 //菲涅尔
 				float f0 = 0.02;
@@ -151,7 +174,7 @@
 
                 col.rgb = lerp(col , reflectCol , vReflect);
                 
-                return fixed4(col.rgb, depth_dif);
+                return fixed4(col.rgb + diffuse, depth_dif);
             }
             ENDCG
         }
