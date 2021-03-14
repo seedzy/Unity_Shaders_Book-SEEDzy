@@ -8,6 +8,7 @@
         _Alpha("Alpha",Range(0,100)) = 1
         _FelPow("菲涅尔强度",Range(0,100)) = 1
         _DiffusePow("漫反射强度",Range(0,1)) = 0.5
+    	_BumpScale("凹凸程度",Range(0,1)) = 0.1
     }
     SubShader
     {
@@ -26,6 +27,7 @@
         
         Pass
         {
+        	//Tags {"RenderType" = "Opaque" }
             ZWrite off
             Blend SrcAlpha OneMinusSrcAlpha 
             
@@ -47,6 +49,7 @@
 
             float _FelPow;
             float _DiffusePow;
+            float _BumpScale;
             
 
             float _Alpha;
@@ -113,44 +116,6 @@
             {
                 // sample the texture
                 fixed4 col = tex2D(_MainTex, i.uv);
-                fixed3 worldTangent = UnityObjectToWorldDir(i.tangent);
-                fixed3 worldNormal = UnityObjectToWorldNormal(i.normal);
-                fixed3 worldBinormal = cross(worldNormal, worldTangent) * i.tangent.w;
-                float3 worldPos = mul(unity_ObjectToWorld,i.objPos);
-
-            	float3 TtoW0 = float3(worldTangent.x, worldBinormal.x, worldNormal.x);
-				float3 TtoW1 = float3(worldTangent.y, worldBinormal.y, worldNormal.y);
-				float3 TtoW2 = float3(worldTangent.z, worldBinormal.z, worldNormal.z);
-                // Get the normal in tangent space
-				fixed3 bump = UnpackNormal(tex2D(_BumpTex, i.uv.zw));
-				// bump.xy *= _BumpScale;
-				// bump.z = sqrt(1.0 - saturate(dot(bump.xy, bump.xy)));
-				// Transform the narmal from tangent space to world space
-				bump = normalize(half3(dot(TtoW0.xyz, bump), dot(TtoW1.xyz, bump), dot(TtoW2.xyz, bump)));
-                
-                
-                fixed3 worldNormalDir = normalize(worldNormal);
-                float3 worldViewDir = -normalize(UnityWorldSpaceViewDir(worldPos));
-                fixed3 worldReflectDir = reflect(worldViewDir,bump);
-                fixed3 worldLightDir = normalize(UnityWorldSpaceLightDir(worldPos));
-                
-                
-
-                //水面反射
-                fixed4 reflectColHDR = UNITY_SAMPLE_TEXCUBE(unity_SpecCube0,worldReflectDir);
-                //将天空盒的HDR转常规RGB，如果有的话
-                fixed3 reflectCol = DecodeHDR(reflectColHDR,unity_SpecCube0_HDR);
-                //漫反射
-                fixed3 diffuse = _LightColor0 * (0.5 * dot(worldLightDir,bump) + 0.5) * _DiffusePow;
-                
-                //菲涅尔
-				float f0 = 0.02;
-                
-    			float vReflect = f0 + (1-f0) * pow((1 - dot(-worldViewDir,worldNormalDir)),_FelPow);
-				vReflect = saturate(vReflect * 2.0);
-    
-				
-                
                 //渐变色相关----还不能放函数外初始化。。。。。
                 const fixed4 phases = fixed4(0.28, 0.50, 0.07, 0.);
 		        const fixed4 amplitudes = fixed4(4.02, 0.34, 0.65, 0.);
@@ -168,11 +133,54 @@
                 fixed4 gradientCol = cosine_gradient(1 - depth_dif,phases,amplitudes,frequencies,offsets);
                 gradientCol = saturate(gradientCol);
 
+
+
+            	
+                fixed3 worldTangent = UnityObjectToWorldDir(i.tangent);
+                fixed3 worldNormal = UnityObjectToWorldNormal(i.normal);
+                fixed3 worldBinormal = cross(worldNormal, worldTangent) * i.tangent.w;
+                float3 worldPos = mul(unity_ObjectToWorld,i.objPos);
+
+            	float3 TtoW0 = float3(worldTangent.x, worldBinormal.x, worldNormal.x);
+				float3 TtoW1 = float3(worldTangent.y, worldBinormal.y, worldNormal.y);
+				float3 TtoW2 = float3(worldTangent.z, worldBinormal.z, worldNormal.z);
+                // Get the normal in tangent space
+				fixed3 bump = UnpackNormal(tex2D(_BumpTex, i.uv.zw));
+				bump.xy *= _BumpScale;
+				bump.z = sqrt(1.0 - saturate(dot(bump.xy, bump.xy)));
+				// Transform the narmal from tangent space to world space
+				bump = half3(dot(TtoW0.xyz, bump), dot(TtoW1.xyz, bump), dot(TtoW2.xyz, bump));
+                
+                
+                fixed3 worldNormalDir = normalize(worldNormal);
+                float3 worldViewDir = -normalize(UnityWorldSpaceViewDir(worldPos));
+                half3 worldReflectDir = reflect(worldViewDir,bump);
+                fixed3 worldLightDir = normalize(UnityWorldSpaceLightDir(worldPos));
+                
+                
+
+                //水面反射
+                fixed4 reflectColHDR = UNITY_SAMPLE_TEXCUBE(unity_SpecCube0,worldReflectDir);
+                //将天空盒的HDR转常规RGB，如果有的话
+                //fixed3 reflectCol = DecodeHDR(reflectColHDR,unity_SpecCube0_HDR);
+                //漫反射
+                fixed3 diffuse = _LightColor0 * (0.5 * dot(worldLightDir,bump) + 0.5) * _DiffusePow;
+                
+                //菲涅尔
+				float f0 = 0.02;
+                
+    			float vReflect = f0 + (1-f0) * pow((1 - dot(-worldViewDir,bump)),_FelPow);
+				vReflect = saturate(vReflect * 2.0);
+    
+				
+                
+
+
                 col.rgb = col.rgb * gradientCol.rgb;
                 // apply fog
                 UNITY_APPLY_FOG(i.fogCoord, col);
 
-                col.rgb = lerp(col , reflectCol , vReflect);
+                col.rgb = lerp(col , reflectColHDR , vReflect);
                 
                 return fixed4(col.rgb + diffuse, depth_dif);
             }
