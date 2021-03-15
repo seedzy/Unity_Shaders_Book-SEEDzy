@@ -151,7 +151,6 @@
 				// Transform the narmal from tangent space to world space
 				bump = half3(dot(TtoW0.xyz, bump), dot(TtoW1.xyz, bump), dot(TtoW2.xyz, bump));
                 
-                
                 fixed3 worldNormalDir = normalize(worldNormal);
                 float3 worldViewDir = -normalize(UnityWorldSpaceViewDir(worldPos));
                 half3 worldReflectDir = reflect(worldViewDir,bump);
