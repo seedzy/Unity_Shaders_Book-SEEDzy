@@ -33,7 +33,13 @@ public class PostEffectsBase : MonoBehaviour {
 		CheckResources();
 	}
 
-	// Called when need to create the material used by this effect
+	/// <summary>
+	/// Called when need to create the material used by this effect
+	/// 检查硬件mat和shader的支持情况，同时若mat不存在则新建并返回
+	/// </summary>
+	/// <param name="shader"></param>
+	/// <param name="material"></param>
+	/// <returns></returns>
 	protected Material CheckShaderAndCreateMaterial(Shader shader, Material material) {
 		if (shader == null) {
 			return null;

@@ -1,4 +1,4 @@
-﻿Shader "Unity Shaders Book/Chapter 10/SEEDzy/Reflection" 
+﻿Shader "SEEDzy/Unity Shaders Book/Chapter 10/Reflection" 
 {
     Properties
     {

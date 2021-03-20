@@ -59,6 +59,7 @@ Shader "Unity Shaders Book/Chapter 12/Gaussian Blur" {
 				sum += tex2D(_MainTex, i.uv[it*2]).rgb * weight[it];
 			}
 			
+			
 			return fixed4(sum, 1.0);
 		}
 		    

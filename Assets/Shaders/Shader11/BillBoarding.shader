@@ -1,4 +1,4 @@
-﻿Shader "Unity Shaders Book/Chapter 11/SEEDzy/BillBoarding"
+﻿Shader "SEEDzy/Unity Shaders Book/Chapter 12/BillBoarding"
 {
     Properties
     {
@@ -50,7 +50,6 @@
                 v2f o;
                 fixed3 center = fixed3(0,0,0);
                 //摄像机模型空间坐标
-
                 //使用内置转换函数也许可以不太关心坐标的w值，但手动乘以矩阵转换坐标时一定要注意w值带来的点和向量的区别
                 float3 camObjPos = mul(unity_WorldToObject,float4(_WorldSpaceCameraPos,1));
                 //模型空间下法线应该处于的方向(指模型正对摄像机表面的法线而不是顶点法线)
@@ -70,15 +69,15 @@
                 else
                     upDir = fixed3(0,1,0);
 
-                float3 rightDir = cross(normalObjDir,upDir);
+                float3 rightDir = normalize(cross(normalObjDir,upDir));
 
-                upDir = cross(normalObjDir,rightDir);
+                upDir = normalize(cross(normalObjDir,rightDir));
 
                 //将原顶点坐标x，y，z理解为分别是其在三轴的单位向量上各偏移xyz个单位的结果，因此，当三轴方向发生改变，只需在现在的三轴单位向量的方向上移动xyz个单位即可得到旋转后的坐标
                 float3 currentPos = v.vertex.x * rightDir + v.vertex.y * upDir + v.vertex.z * normalObjDir;
                 
                 
-                o.vertex = UnityObjectToClipPos(currentPos);
+                o.vertex = UnityObjectToClipPos(float4(currentPos,1));
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 return o;
             }
