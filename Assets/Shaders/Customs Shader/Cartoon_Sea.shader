@@ -182,6 +182,7 @@
                 col.rgb = lerp(col , reflectColHDR , vReflect);
                 
                 return fixed4(col.rgb + diffuse, depth_dif);
+            	return fixed4(fixed3(1,1,1) * SAMPLE_DEPTH_TEXTURE_PROJ(_CameraDepthTexture,UNITY_PROJ_COORD(i.projPos)),1);
             }
             ENDCG
         }
