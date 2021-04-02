@@ -58,7 +58,7 @@
         fixed4 frag (v2f i) : SV_Target
         {
             //从深度纹理采样深度值
-            float h = SAMPLE_RAW_DEPTH_TEXTURE(_CameraDepthTexture,i.uv_Depth);
+            float h = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture,i.uv_Depth);
             //通过UV坐标和深度值构建ndc空间下坐标
             half4 ndcPos = half4(i.uv_Depth.x * 2 - 1,i.uv_Depth.y * 2 - 1, h * 2 - 1, 1);
             //这两步是计算该点的世界坐标空间坐标，先用vp逆矩阵转换，再除以其w值，详细推导看笔记吧。
