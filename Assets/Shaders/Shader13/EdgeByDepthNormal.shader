@@ -26,8 +26,49 @@
 		
 		sampler2D _CameraDepthNormalsTexture;
 
+		struct a2v
+		{
+			float4 vert : POSITION;
+			float2 uv[5] : TEXCOORD;
+		}
 
+		struct v2f
+		{
+			float4 pos : SV_POSITION;
+			float2 uv[5] : TEXCOORD0;
+		}
 
+		v2f vert(a2v v)
+		{
+			v2f o;
+			o.pos = UnityObjectToClipPos(v.vert);
+
+			o.uv[5] = v.uv[5];
+
+			return o;
+		}
+
+		fixed4 frag(v2f i) : SV_Target
+		{
+			fixed4 sample1 = tex2D(_MainTex,uv[1]);
+			fixed4 sample2 = tex2D(_MainTex,uv[2]);
+			fixed4 sample3 = tex2D(_MainTex,uv[3]);
+			fixed4 sample4 = tex2D(_MainTex,uv[4]);
+
+			fixed edge = 1;
+
+		}
+
+		fixed CheckNum(fixed4 top,fixed4 buttom)
+		{
+			half2 topNormal = top.xy;
+			float topDepth = DecodeFloatRG(buttom.zw);
+			half2 buttomNormal = buttom.xy;
+			float buttomDepth = DecodeFloatRG(buttom.zw)
+
+			float diffNormal = abs(topNormal - buttomNormal) * _Sensitivity.x;
+			
+		}
 
         
         ENDCG
