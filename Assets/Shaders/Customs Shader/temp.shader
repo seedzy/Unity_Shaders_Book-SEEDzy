@@ -108,7 +108,8 @@
     };
  
     // per new grass vertex
-    g2f GrassVertex(float3 vertexPos, float width, float height, float offset, float curve, float2 uv, float3x3 rotation, float3 faceNormal, float3 color, float3 worldPos) {
+    g2f GrassVertex(float3 vertexPos, float width, float height, float offset, float curve, float2 uv, float3x3 rotation, float3 faceNormal, float3 color, float3 worldPos)
+    {
         g2f OUT;
         OUT.pos = UnityObjectToClipPos(vertexPos + mul(rotation, float3(width, height, curve) + float3(0, 0, offset)));
         OUT.norm = faceNormal;

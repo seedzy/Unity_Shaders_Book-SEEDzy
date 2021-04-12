@@ -7,8 +7,11 @@
         _Color("Color Tint",Color) = (1,1,1,1)
         _Alpha("Alpha",Range(0,100)) = 1
         _FelPow("菲涅尔强度",Range(0,100)) = 1
+    	_RefPow("反射强度",Range(0,1)) = 1
         _DiffusePow("漫反射强度",Range(0,1)) = 0.5
     	_BumpScale("凹凸程度",Range(0,1)) = 0.1
+    	_Xspeed("Xspeed",Range(0,0.1)) = 0.01
+    	_Yspeed("Yspeed",Range(0,0.1)) = 0.01
     }
     SubShader
     {
@@ -50,6 +53,9 @@
             float _FelPow;
             float _DiffusePow;
             float _BumpScale;
+            float _Xspeed;
+            float _Yspeed;
+            float _RefPow;
             
 
             float _Alpha;
@@ -85,7 +91,7 @@
                 o.tangent = v.tangent;
                 
                 o.uv.xy = v.uv.xy * _MainTex_ST.xy + _MainTex_ST.zw;
-                o.uv.zw = v.uv.xy * _BumpTex_ST.xy + _BumpTex_ST.zw * _Time.y;
+                o.uv.zw = v.uv.xy * _BumpTex_ST.xy + _BumpTex_ST.zw;
                 
                 UNITY_TRANSFER_FOG(o,o.vertex);
                 //将裁剪空间坐标点映射至 (0 , w)
@@ -145,7 +151,12 @@
 				float3 TtoW1 = float3(worldTangent.y, worldBinormal.y, worldNormal.y);
 				float3 TtoW2 = float3(worldTangent.z, worldBinormal.z, worldNormal.z);
                 // Get the normal in tangent space
-				fixed3 bump = UnpackNormal(tex2D(_BumpTex, i.uv.zw));
+            	float2 speed = _Time.y * float2(_Xspeed, _Yspeed);
+            	
+				fixed3 bump1 = UnpackNormal(tex2D(_BumpTex, i.uv.zw + speed));
+            	fixed3 bump2 = UnpackNormal(tex2D(_BumpTex, i.uv.zw - speed));
+            	fixed3 bump = normalize(bump2 + bump1);
+            	
 				bump.xy *= _BumpScale;
 				bump.z = sqrt(1.0 - saturate(dot(bump.xy, bump.xy)));
 				// Transform the narmal from tangent space to world space
@@ -179,6 +190,8 @@
                 // apply fog
                 UNITY_APPLY_FOG(i.fogCoord, col);
 
+				reflectColHDR = _RefPow * reflectColHDR + (1 - _RefPow) * col;
+            	
                 col.rgb = lerp(col , reflectColHDR , vReflect);
                 
                 return fixed4(col.rgb + diffuse, depth_dif);
