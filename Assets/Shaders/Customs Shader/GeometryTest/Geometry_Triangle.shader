@@ -4,6 +4,7 @@
     {
         _MainTex ("Texture", 2D) = "white" {}
         _GrassCol("三角形颜色", Color) = (1,1,1,1)
+        _GrassHei("三角形高度", float) = 1
     }
     SubShader
     {
@@ -12,6 +13,7 @@
 
         Pass
         {
+            cull off
             CGPROGRAM
             #pragma vertex vert
             #pragma geometry geom
@@ -23,6 +25,8 @@
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
+            float _GrassHei;
+            fixed4 _GrassCol;
 
 
             struct a2v
@@ -51,7 +55,8 @@
             v2g vert (a2v v)
             {
                 v2g o;
-                o.vertex = UnityObjectToClipPos(v.vertex);
+                o.vertex = v.vertex;
+                o.normal = v.normal;
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
                 UNITY_TRANSFER_FOG(o,o.vertex);
                 return o;
@@ -66,18 +71,26 @@
                 g2f o;
                 //新构成的三角形顶端应在两点中点法线方向的线上
                 float4 tipPos = (input[0].vertex + input[1].vertex)/2;
-                float3 tipNormal = normalized(input[0].normal + input[1].normal);
+                float3 tipNormal = normalize(input[0].normal + input[1].normal);
 
+                //传入三角形顶端数据
+                o.uv = (input[0].uv + input[1].uv)/2;
+                o.vertex = float4(tipPos.xyz + tipNormal * _GrassHei,tipPos.w);
+                o.vertex = UnityObjectToClipPos(o.vertex);
+                o.color = _GrassCol;
+                triStream.Append(o);
+
+                //传入其余两点
                 for(int i = 0; i<2; i++)
                 {
                     o.uv = input[i].uv;
-                    o.vertex = input[i].vertex;
+                    o.vertex = UnityObjectToClipPos(input[i].vertex);
+                    o.color = fixed4(1,1,1,1);
                     triStream.Append(o);
                 }
-                o.vertex = input[0].vertex;
-                o.uv = input[0].uv;
-                //向输出流中添加该点
-                outStream.Append(o);
+
+                //构建三角
+                triStream.RestartStrip();     
             }
 
             fixed4 frag (g2f i) : SV_Target
@@ -86,6 +99,8 @@
                 fixed4 col = tex2D(_MainTex, i.uv);
                 // apply fog
                 UNITY_APPLY_FOG(i.fogCoord, col);
+
+                col = col * i.color;
                 return col;
             }
             ENDCG
