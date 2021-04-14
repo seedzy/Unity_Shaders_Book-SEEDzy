@@ -5,6 +5,8 @@
         _MainTex ("Texture", 2D) = "white" {}
         _GrassCol("三角形颜色", Color) = (1,1,1,1)
         _GrassHei("三角形高度", float) = 1
+        _GroundCol("平面颜色", Color) = (1,1,1,1)
+        _Offset("测试", float) = 1
     }
     SubShader
     {
@@ -18,15 +20,16 @@
             #pragma vertex vert
             #pragma geometry geom
             #pragma fragment frag
-            // make fog work
-            #pragma multi_compile_fog
 
             #include "UnityCG.cginc"
+            #include "Lighting.cginc"
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
             float _GrassHei;
             fixed4 _GrassCol;
+            fixed4 _GroundCol;
+            float _Offset;
 
 
             struct a2v
@@ -34,6 +37,7 @@
                 float4 vertex : POSITION;
                 float2 uv : TEXCOORD0;
                 float3 normal : NORMAL;
+                float4 tangent : TANGENT;
             };
 
             struct v2g
@@ -41,13 +45,17 @@
                 float4 vertex : SV_POSITION;
                 float2 uv : TEXCOORD0;
                 float3 normal : TEXCOORD1;
+                //float4 worldPos : TEXCOORD2;
+                float4 tangent : TEXCOORD3;
             };
 
             struct g2f
             {
-                float2 uv : TEXCOORD0;
+                //float2 uv : TEXCOORD0;
                 float4 vertex : SV_POSITION;
                 fixed4 color : TEXCOORD1;
+                //float4 worldPos : TEXCOORD2;
+                //float3 normal : TEXCOORD3;
             };
 
 
@@ -57,51 +65,69 @@
                 v2g o;
                 o.vertex = v.vertex;
                 o.normal = v.normal;
+                o.tangent = v.tangent;
                 o.uv = TRANSFORM_TEX(v.uv, _MainTex);
-                UNITY_TRANSFER_FOG(o,o.vertex);
+                //o.worldPos = mul(unity_ObjectToWorld,v.vertex);
                 return o;
             }
 
-            //设置单次操作最大顶点输出数，尽量低于20
-            [maxvertexcount(3)]
-            void geom(line v2g input[2],inout TriangleStream<g2f> triStream)
+
+
+            g2f PerTriangle(float3 pos)
             {
+                g2f o;
+                o.vertex = UnityObjectToClipPos(pos);
+                o.color = _GrassCol;
+                //o.uv = 
+                return  o;
+            }
+            
+            //设置单次操作最大顶点输出数，尽量低于20
+            [maxvertexcount(12)]
+            void geom(triangle v2g input[3],inout TriangleStream<g2f> triStream)
+            {
+                float3 bnormal = cross(input[0].normal,input[0].tangent) * input[0].tangent.w;
+
+                //切线空间转模型
+                float3x3 tangentToObject =
+                float3x3(
+                    input[0].tangent.x, bnormal.x, input[0].normal.x,
+                    input[0].tangent.y, bnormal.y, input[0].normal.y,
+                    input[0].tangent.z, bnormal.z, input[0].normal.z
+                );
+
+                triStream.Append(PerTriangle(input[0].vertex + mul(tangentToObject, float3(_Offset,0,0))));
+                triStream.Append(PerTriangle(input[0].vertex + mul(tangentToObject, float3(-_Offset,0,0))));
+                triStream.Append(PerTriangle(input[0].vertex + mul(tangentToObject, float3(0,0,_GrassHei))));
+                
                 //第一个point指出输入数据以点为单位，也可使用triangle&line
                 //inout Pointstream指出输出的数据类型，也可使用triangleStream&lineStream
                 g2f o;
-                //新构成的三角形顶端应在两点中点法线方向的线上
-                float4 tipPos = (input[0].vertex + input[1].vertex)/2;
-                float3 tipNormal = normalize(input[0].normal + input[1].normal);
-
-                //传入三角形顶端数据
-                o.uv = (input[0].uv + input[1].uv)/2;
-                o.vertex = float4(tipPos.xyz + tipNormal * _GrassHei,tipPos.w);
-                o.vertex = UnityObjectToClipPos(o.vertex);
-                o.color = _GrassCol;
-                triStream.Append(o);
-
-                //传入其余两点
-                for(int i = 0; i<2; i++)
-                {
-                    o.uv = input[i].uv;
-                    o.vertex = UnityObjectToClipPos(input[i].vertex);
-                    o.color = fixed4(1,1,1,1);
-                    triStream.Append(o);
-                }
-
-                //构建三角
-                triStream.RestartStrip();     
+                
+                //传入平面三角
+                // for(uint j = 0; j < 3; j++)
+                // {
+                //     //o.uv = input[j].uv;
+                //     o.vertex = UnityObjectToClipPos(input[j].vertex);
+                //     o.color = _GroundCol;
+                //     //o.worldPos = input[j].worldPos;
+                //     //o.normal = input[j].normal;
+                //     triStream.Append(o);
+                // }
+                
             }
 
             fixed4 frag (g2f i) : SV_Target
             {
-                // sample the texture
-                fixed4 col = tex2D(_MainTex, i.uv);
-                // apply fog
-                UNITY_APPLY_FOG(i.fogCoord, col);
+                //float3 worldLightDir = normalize(UnityWorldSpaceLightDir(i.worldPos));
+                //float3 worldNormalDir = normalize(UnityObjectToWorldNormal(i.normal));
 
-                col = col * i.color;
-                return col;
+                //fixed3 diff = (dot(worldLightDir,worldNormalDir) * 0.5 + 0.5) * _LightColor0;
+                // sample the texture
+                //fixed4 col = tex2D(_MainTex, i.uv);
+
+                //col = fixed4(col.rgb * i.color.rgb * diff,1);
+                return i.color;
             }
             ENDCG
         }
