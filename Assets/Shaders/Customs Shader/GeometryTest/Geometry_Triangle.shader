@@ -4,9 +4,11 @@
     {
         _MainTex ("Texture", 2D) = "white" {}
         _GrassCol("三角形颜色", Color) = (1,1,1,1)
+        _GrassButtomCol("三角形底部颜色", Color) = (1,1,1,1)
+        _GrassColOffset("三角形颜色偏移",Range(0, 5)) = 1
+        
         _GrassHei("三角形高度", float) = 1
-        _GroundCol("平面颜色", Color) = (1,1,1,1)
-        _Offset("测试", float) = 1
+        _GrassWid("三角形宽度", Range(0, 1)) = 1
     }
     SubShader
     {
@@ -29,7 +31,9 @@
             float _GrassHei;
             fixed4 _GrassCol;
             fixed4 _GroundCol;
-            float _Offset;
+            float _GrassWid;
+            fixed4 _GrassButtomCol;
+            float _GrassColOffset;
 
 
             struct a2v
@@ -43,19 +47,15 @@
             struct v2g
             {
                 float4 vertex : SV_POSITION;
-                float2 uv : TEXCOORD0;
                 float3 normal : TEXCOORD1;
-                //float4 worldPos : TEXCOORD2;
+                float2 uv : TEXCOORD2;
                 float4 tangent : TEXCOORD3;
             };
 
             struct g2f
             {
-                //float2 uv : TEXCOORD0;
                 float4 vertex : SV_POSITION;
-                fixed4 color : TEXCOORD1;
-                //float4 worldPos : TEXCOORD2;
-                //float3 normal : TEXCOORD3;
+                float2 uv : TEXCOORD2;
             };
 
 
@@ -66,19 +66,16 @@
                 o.vertex = v.vertex;
                 o.normal = v.normal;
                 o.tangent = v.tangent;
-                o.uv = TRANSFORM_TEX(v.uv, _MainTex);
-                //o.worldPos = mul(unity_ObjectToWorld,v.vertex);
                 return o;
             }
 
 
 
-            g2f PerTriangle(float3 pos)
+            g2f PerTriangle(float3 pos,float2 uv)
             {
                 g2f o;
                 o.vertex = UnityObjectToClipPos(pos);
-                o.color = _GrassCol;
-                //o.uv = 
+                o.uv = uv;
                 return  o;
             }
             
@@ -86,6 +83,8 @@
             [maxvertexcount(12)]
             void geom(triangle v2g input[3],inout TriangleStream<g2f> triStream)
             {
+
+                
                 float3 bnormal = cross(input[0].normal,input[0].tangent) * input[0].tangent.w;
 
                 //切线空间转模型
@@ -96,40 +95,21 @@
                     input[0].tangent.z, bnormal.z, input[0].normal.z
                 );
 
-                triStream.Append(PerTriangle(input[0].vertex + mul(tangentToObject, float3(_Offset,0,0))));
-                triStream.Append(PerTriangle(input[0].vertex + mul(tangentToObject, float3(-_Offset,0,0))));
-                triStream.Append(PerTriangle(input[0].vertex + mul(tangentToObject, float3(0,0,_GrassHei))));
-                
-                //第一个point指出输入数据以点为单位，也可使用triangle&line
-                //inout Pointstream指出输出的数据类型，也可使用triangleStream&lineStream
-                g2f o;
-                
-                //传入平面三角
-                // for(uint j = 0; j < 3; j++)
-                // {
-                //     //o.uv = input[j].uv;
-                //     o.vertex = UnityObjectToClipPos(input[j].vertex);
-                //     o.color = _GroundCol;
-                //     //o.worldPos = input[j].worldPos;
-                //     //o.normal = input[j].normal;
-                //     triStream.Append(o);
-                // }
-                
+                triStream.Append(PerTriangle(input[0].vertex + mul(tangentToObject, float3(_GrassWid,0,0)), float2(0,0)));
+                triStream.Append(PerTriangle(input[0].vertex + mul(tangentToObject, float3(-_GrassWid,0,0)), float2(1,0)));
+                triStream.Append(PerTriangle(input[0].vertex + mul(tangentToObject, float3(0,0,_GrassHei)), float2(0.5,1)));
+                triStream.RestartStrip();
+            
             }
 
             fixed4 frag (g2f i) : SV_Target
             {
-                //float3 worldLightDir = normalize(UnityWorldSpaceLightDir(i.worldPos));
-                //float3 worldNormalDir = normalize(UnityObjectToWorldNormal(i.normal));
-
-                //fixed3 diff = (dot(worldLightDir,worldNormalDir) * 0.5 + 0.5) * _LightColor0;
-                // sample the texture
-                //fixed4 col = tex2D(_MainTex, i.uv);
-
-                //col = fixed4(col.rgb * i.color.rgb * diff,1);
-                return i.color;
+                float offset = smoothstep(0, _GrassColOffset,i.uv.y);
+                fixed3 finCol = offset* _GrassCol + (1 - offset) * _GrassButtomCol;
+                return fixed4(finCol.rgb, 1);
             }
             ENDCG
         }
     }
 }
+
