@@ -9,6 +9,8 @@
         
         _GrassHei("三角形高度", float) = 1
         _GrassWid("三角形宽度", Range(0, 1)) = 1
+        _GrassBend("弯曲程度", Range(0, 1)) = 1
+        _GrassAmount("密度", Range(0, 10)) = 5
     }
     SubShader
     {
@@ -34,6 +36,8 @@
             float _GrassWid;
             fixed4 _GrassButtomCol;
             float _GrassColOffset;
+            float _GrassBend;
+            float _GrassAmount;
 
 
             struct a2v
@@ -70,6 +74,29 @@
             }
 
 
+            float rand(float3 co)
+	        {
+		        return frac(sin(dot(co.xyz, float3(12.9898, 78.233, 53.539))) * 43758.5453);
+	        }
+            
+            float3x3 AngleAxis3x3(float angle, float3 axis)
+            {
+                float c, s;
+                sincos(angle, s, c);
+
+                float t = 1 - c;
+                float x = axis.x;
+                float y = axis.y;
+                float z = axis.z;
+
+                return float3x3(
+                    t * x * x + c,      t * x * y - s * z,  t * x * z + s * y,
+                    t * x * y + s * z,  t * y * y + c,      t * y * z - s * x,
+                    t * x * z - s * y,  t * y * z + s * x,  t * z * z + c
+                );
+            }
+
+
 
             g2f PerTriangle(float3 pos,float2 uv)
             {
@@ -80,10 +107,10 @@
             }
             
             //设置单次操作最大顶点输出数，尽量低于20
-            [maxvertexcount(12)]
+            [maxvertexcount(18)]
             void geom(triangle v2g input[3],inout TriangleStream<g2f> triStream)
             {
-
+                float3 pos = input[0].vertex.xyz;
                 
                 float3 bnormal = cross(input[0].normal,input[0].tangent) * input[0].tangent.w;
 
@@ -95,9 +122,55 @@
                     input[0].tangent.z, bnormal.z, input[0].normal.z
                 );
 
-                triStream.Append(PerTriangle(input[0].vertex + mul(tangentToObject, float3(_GrassWid,0,0)), float2(0,0)));
-                triStream.Append(PerTriangle(input[0].vertex + mul(tangentToObject, float3(-_GrassWid,0,0)), float2(1,0)));
-                triStream.Append(PerTriangle(input[0].vertex + mul(tangentToObject, float3(0,0,_GrassHei)), float2(0.5,1)));
+                float4 randPos[10];
+                for(int i = 0; i< 5; i++)
+                {
+                    randPos[i].x = rand(pos.xxx + float3(1, 1, 1) * i);
+                    randPos[i].y = rand(pos.yyy + float3(1, 1, 1) * i);
+                    randPos[i].z = rand(pos.zzz + float3(1, 1, 1) * i);
+                    //距离
+                    randPos[i].w = 0.5 * _GrassAmount - rand(randPos[i].xyz) * _GrassAmount;
+                    
+                    randPos[i].xyz = normalize(randPos[i].xyz);
+                    randPos[i].y = 0;
+                }
+
+                for(int i = 0; i< 5; i++)
+                {
+                    //根据三角形位置生成一个随机旋转矩阵
+                    float3x3 faceRotationMatrix = AngleAxis3x3(rand(randPos[i].xyz) * UNITY_TWO_PI,float3(0, 0, 1));
+
+                    float3x3 bendMatrix = AngleAxis3x3(rand(randPos[i].zyx) * UNITY_TWO_PI * 0.5 * _GrassBend, float3(1, 0, 0));
+                    
+                    //合并矩阵，先旋转再转换，顺序不能错
+                    float3x3 tranRotaMatrix = mul(mul(tangentToObject, faceRotationMatrix), bendMatrix);
+
+                    float3 leftButtomPos = randPos[i].xyz * randPos[i].w + pos + mul(tranRotaMatrix, float3(_GrassWid,0,0));
+                    float3 rightButtomPos = randPos[i].xyz * randPos[i].w + pos + mul(tranRotaMatrix, float3(-_GrassWid,0,0));
+                    float3 topPos = randPos[i].xyz * randPos[i].w + pos + mul(tranRotaMatrix, float3(0, 0, _GrassHei));
+
+                    triStream.Append(PerTriangle(leftButtomPos, float2(0, 0)));
+                    triStream.Append(PerTriangle(rightButtomPos, float2(1, 0)));
+                    triStream.Append(PerTriangle(topPos, float2(0.5,1)));
+                    
+                    triStream.RestartStrip();
+                }
+
+                //根据三角形位置生成一个随机旋转矩阵
+                float3x3 faceRotationMatrix = AngleAxis3x3(rand(input[0].vertex) * UNITY_TWO_PI,float3(0, 0, 1));
+
+                float3x3 bendMatrix = AngleAxis3x3(rand(input[0].vertex.zyx) * UNITY_TWO_PI * 0.5 * _GrassBend, float3(1, 0, 0));
+                //合并矩阵，先旋转再转换，顺序不能错
+                float3x3 tranRotaMatrix = mul(mul(tangentToObject, faceRotationMatrix), bendMatrix);
+
+                float3 leftButtomPos = input[0].vertex + mul(tranRotaMatrix, float3(_GrassWid,0,0));
+                float3 rightButtomPos = input[0].vertex + mul(tranRotaMatrix, float3(-_GrassWid,0,0));
+                float3 topPos = input[0].vertex + mul(tranRotaMatrix, float3(0, 0, _GrassHei));
+
+                triStream.Append(PerTriangle(leftButtomPos, float2(0, 0)));
+                triStream.Append(PerTriangle(rightButtomPos, float2(1, 0)));
+                triStream.Append(PerTriangle(topPos, float2(0.5,1)));
+                
                 triStream.RestartStrip();
             
             }
@@ -112,4 +185,3 @@
         }
     }
 }
-
