@@ -8,9 +8,13 @@
         _GrassColOffset("三角形颜色偏移",Range(0, 5)) = 1
         
         _GrassHei("三角形高度", float) = 1
+        _GrassHeiOffset("三角形高度偏差", float) = 0.1
         _GrassWid("三角形宽度", Range(0, 1)) = 1
         _GrassBend("弯曲程度", Range(0, 1)) = 1
         _GrassAmount("密度", Range(0, 10)) = 5
+
+        _WindMap("摇晃法线贴图", 2D) = "white" {}
+        _WindFrequency("摇晃频率", vector) = (1, 1, 0)
     }
     SubShader
     {
@@ -38,6 +42,10 @@
             float _GrassColOffset;
             float _GrassBend;
             float _GrassAmount;
+            float _GrassHeiOffset;
+
+            sampler2D _WindMap;
+            float4 _WindMap_ST;
 
 
             struct a2v
@@ -107,11 +115,14 @@
             }
             
             //设置单次操作最大顶点输出数，尽量低于20
-            [maxvertexcount(18)]
+            [maxvertexcount(30)]
             void geom(triangle v2g input[3],inout TriangleStream<g2f> triStream)
             {
                 float3 pos = input[0].vertex.xyz;
                 
+                float2 uv = TRANSFORM_TEX(pos.xz, _WindMap) + _WindFrequency * _Time.y;
+
+
                 float3 bnormal = cross(input[0].normal,input[0].tangent) * input[0].tangent.w;
 
                 //切线空间转模型
@@ -123,7 +134,7 @@
                 );
 
                 float4 randPos[10];
-                for(int i = 0; i< 5; i++)
+                for(int i = 0; i< 10; i++)
                 {
                     randPos[i].x = rand(pos.xxx + float3(1, 1, 1) * i);
                     randPos[i].y = rand(pos.yyy + float3(1, 1, 1) * i);
@@ -135,7 +146,7 @@
                     randPos[i].y = 0;
                 }
 
-                for(int i = 0; i< 5; i++)
+                for(int i = 0; i< 10; i++)
                 {
                     //根据三角形位置生成一个随机旋转矩阵
                     float3x3 faceRotationMatrix = AngleAxis3x3(rand(randPos[i].xyz) * UNITY_TWO_PI,float3(0, 0, 1));
@@ -144,10 +155,13 @@
                     
                     //合并矩阵，先旋转再转换，顺序不能错
                     float3x3 tranRotaMatrix = mul(mul(tangentToObject, faceRotationMatrix), bendMatrix);
+                    
+                    //随机一个高度
+                    float randHei = rand(randPos[i].yzw);
 
                     float3 leftButtomPos = randPos[i].xyz * randPos[i].w + pos + mul(tranRotaMatrix, float3(_GrassWid,0,0));
                     float3 rightButtomPos = randPos[i].xyz * randPos[i].w + pos + mul(tranRotaMatrix, float3(-_GrassWid,0,0));
-                    float3 topPos = randPos[i].xyz * randPos[i].w + pos + mul(tranRotaMatrix, float3(0, 0, _GrassHei));
+                    float3 topPos = randPos[i].xyz * randPos[i].w + pos + mul(tranRotaMatrix, float3(0, 0, _GrassHei * (randHei * _GrassHeiOffset + 1)));
 
                     triStream.Append(PerTriangle(leftButtomPos, float2(0, 0)));
                     triStream.Append(PerTriangle(rightButtomPos, float2(1, 0)));
