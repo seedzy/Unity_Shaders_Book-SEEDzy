@@ -16,6 +16,8 @@
         _WindMap("摇晃法线贴图", 2D) = "white" {}
         _WindFrequency("摇晃频率", vector) = (1, 1, 0,0)
         _WindStrength("摇晃强度", float) = 1
+        
+        _Test("test", float) = 1
     }
     SubShader
     {
@@ -33,6 +35,8 @@
             #include "UnityCG.cginc"
             #include "Lighting.cginc"
 
+            #define segment 3
+
             sampler2D _MainTex;
             float4 _MainTex_ST;
             float _GrassHei;
@@ -44,6 +48,7 @@
             float _GrassBend;
             float _GrassAmount;
             float _GrassHeiOffset;
+            float _Test;
 
             sampler2D _WindMap;
             float4 _WindMap_ST;
@@ -171,11 +176,14 @@
                     //基于模型空间坐标采样
                     float2 windSample = (tex2Dlod(_WindMap, float4(uv, 0, 0)).xy * 2 - 1) * _WindStrength;
 
+                    float dirZ = sin(worldPos.x);
+                    
                     //根据采样构建偏移方向
-                    float3 wind = normalize(float3(windSample.x, windSample.y, 0));
+                    //float3 wind = normalize(float3(windSample.x, windSample.y, 0));
+                    float3 wind = normalize(float3(dirZ, 0, 0));
                     
                     //生成摇晃旋转矩阵
-                    float3x3 windRotation = AngleAxis3x3(UNITY_PI * windSample, wind);
+                    float3x3 windRotation = AngleAxis3x3(UNITY_PI * dirZ * _Test, float3(1, 0, 0));
                     //-----------------------------------------------------------------------------------------------------------------------------
                     
                     //合并矩阵，先旋转再转换，顺序不能错
@@ -200,22 +208,6 @@
                     triStream.RestartStrip();
                 }
 
-                // //根据三角形位置生成一个随机旋转矩阵
-                // float3x3 faceRotationMatrix = AngleAxis3x3(rand(input[0].vertex) * UNITY_TWO_PI,float3(0, 0, 1));
-                //
-                // float3x3 bendMatrix = AngleAxis3x3(rand(input[0].vertex.zyx) * UNITY_TWO_PI * 0.5 * _GrassBend, float3(1, 0, 0));
-                // //合并矩阵，先旋转再转换，顺序不能错
-                // float3x3 tranRotaMatrix = mul(mul(tangentToObject, faceRotationMatrix), bendMatrix);
-                //
-                // float3 leftButtomPos = input[0].vertex + mul(tranRotaMatrix, float3(_GrassWid,0,0));
-                // float3 rightButtomPos = input[0].vertex + mul(tranRotaMatrix, float3(-_GrassWid,0,0));
-                // float3 topPos = input[0].vertex + mul(tranRotaMatrix, float3(0, 0, _GrassHei));
-                //
-                // triStream.Append(PerTriangle(leftButtomPos, float2(0, 0)));
-                // triStream.Append(PerTriangle(rightButtomPos, float2(1, 0)));
-                // triStream.Append(PerTriangle(topPos, float2(0.5,1)));
-                //
-                // triStream.RestartStrip();
             
             }
 
