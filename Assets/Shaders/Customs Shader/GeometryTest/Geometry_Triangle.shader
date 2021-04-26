@@ -170,20 +170,20 @@
 
                     //--------------------------------------------------摇晃---------------------------------------------------------------------------
                     //
-                    float3 worldPos = mul(unity_ObjectToWorld, randPos[i]);
+                    float3 worldPos = mul(unity_ObjectToWorld, float4(randPos[i].xyz, 1));
                     //应用图片偏移缩放
-                    float2 uv = TRANSFORM_TEX(worldPos.xz, _WindMap) + _WindFrequency * _Time.y;
+                    //float2 uv = TRANSFORM_TEX(worldPos.xz, _WindMap) + _WindFrequency * _Time.y;
                     //基于模型空间坐标采样
-                    float2 windSample = (tex2Dlod(_WindMap, float4(uv, 0, 0)).xy * 2 - 1) * _WindStrength;
+                    //float2 windSample = (tex2Dlod(_WindMap, float4(uv, 0, 0)).xy * 2 - 1) * _WindStrength;
 
-                    float dirZ = sin(worldPos.x);
+                    float dirZ = sin(worldPos.x * _Test + _Time.y * _WindFrequency.y);
                     
                     //根据采样构建偏移方向
                     //float3 wind = normalize(float3(windSample.x, windSample.y, 0));
-                    float3 wind = normalize(float3(dirZ, 0, 0));
+                    //float3 wind = normalize(float3(dirZ, 0, 0));
                     
                     //生成摇晃旋转矩阵
-                    float3x3 windRotation = AngleAxis3x3(UNITY_PI * dirZ * _Test, float3(1, 0, 0));
+                    float3x3 windRotation = AngleAxis3x3(UNITY_PI * dirZ * _WindStrength, float3(1, 0, 0));
                     //-----------------------------------------------------------------------------------------------------------------------------
                     
                     //合并矩阵，先旋转再转换，顺序不能错
