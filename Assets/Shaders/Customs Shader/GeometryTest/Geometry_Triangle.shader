@@ -11,7 +11,7 @@
         _GrassHeiOffset("三角形高度偏差", float) = 0.1
         _GrassWid("三角形宽度", Range(0, 1)) = 1
         _GrassBend("弯曲程度", Range(0, 1)) = 1
-        _GrassAmount("密度", Range(0, 10)) = 5
+        _GrassAmount("密度", Range(0, 20)) = 5
 
         _WindMap("摇晃法线贴图", 2D) = "white" {}
         _WindFrequency("摇晃频率", vector) = (1, 1, 0,0)
@@ -114,8 +114,6 @@
                 );
             }
 
-
-
             g2f PerTriangle(float3 pos,float2 uv)
             {
                 g2f o;
@@ -130,14 +128,6 @@
             {
                 float3 pos = input[0].vertex.xyz;
 
-                /////////////////////////////////////////////////////////////////////////////////////
-                
-                
-                /////////////////////////////////////////////////////////////////////////////////////
-
-
-
-                
                 // float3 bnormal = cross(input[0].normal,input[0].tangent) * input[0].tangent.w;
                 //
                 // //切线空间转模型
@@ -188,12 +178,26 @@
                     //随机一个高度
                     float randHei = rand(randPos[i].yzw);
 
-                    float3 leftButtomPos = randPos[i].xyz * randPos[i].w + pos + mul(faceRotationMatrix, float3(_GrassWid,0,0));
-                    float3 rightButtomPos = randPos[i].xyz * randPos[i].w + pos + mul(faceRotationMatrix, float3(-_GrassWid,0,0));
-                    float3 topPos = randPos[i].xyz * randPos[i].w + pos + mul(tranRotaMatrix, float3(0, _GrassHei * (randHei * _GrassHeiOffset + 1), 0));
+                    //高度计算
+                    float tempHei = _GrassHei * (randHei * _GrassHeiOffset + 1);
+                    
+                    float3 topPos = randPos[i].xyz * randPos[i].w + pos + mul(tranRotaMatrix, float3(0, tempHei * segment * segment, 0));
 
-                    triStream.Append(PerTriangle(leftButtomPos, float2(0, 0)));
-                    triStream.Append(PerTriangle(rightButtomPos, float2(1, 0)));
+
+                    for (int j = 0; j < segment; j++)
+		            {
+			            //float t = j / (float)segment;
+
+			            float segmentHeight = tempHei * 2 * j;
+			            float segmentWidth = _GrassWid + j * _GrassWid / (j + 1);
+
+			            float3 leftButtomPos = randPos[i].xyz * randPos[i].w + pos + mul(faceRotationMatrix, float3(segmentWidth, segmentHeight, 0));
+                        float3 rightButtomPos = randPos[i].xyz * randPos[i].w + pos + mul(faceRotationMatrix, float3(-segmentWidth, segmentHeight, 0));
+
+			            triStream.Append(PerTriangle(leftButtomPos, float2(0, 0)));
+                        triStream.Append(PerTriangle(rightButtomPos, float2(1, 0)));
+		            }
+                     
                     triStream.Append(PerTriangle(topPos, float2(0.5,1)));
                     
                     triStream.RestartStrip();
