@@ -128,15 +128,15 @@
             {
                 float3 pos = input[0].vertex.xyz;
 
-                // float3 bnormal = cross(input[0].normal,input[0].tangent) * input[0].tangent.w;
-                //
-                // //切线空间转模型
-                // float3x3 tangentToObject =
-                // float3x3(
-                //     input[0].tangent.x, bnormal.x, input[0].normal.x,
-                //     input[0].tangent.y, bnormal.y, input[0].normal.y,
-                //     input[0].tangent.z, bnormal.z, input[0].normal.z
-                // );
+                float3 bnormal = cross(input[0].normal,input[0].tangent) * input[0].tangent.w;
+                
+                //切线空间转模型
+                float3x3 tangentToObjectMatrix =
+                float3x3(
+                    input[0].tangent.x, bnormal.x, input[0].normal.x,
+                    input[0].tangent.y, bnormal.y, input[0].normal.y,
+                    input[0].tangent.z, bnormal.z, input[0].normal.z
+                );
 
                 //float3 worldPos = mul(unity_ObjectToWorld, mul(tangentToObject, float4(pos.xyz, 1));
 
@@ -173,7 +173,7 @@
                     float3x3 bendMatrix = AngleAxis3x3(rand(randPos[i].zyx) * UNITY_TWO_PI * 0.5 * _GrassBend, float3(1, 0, 0));
                     
                     //合并矩阵，先旋转再转换，顺序不能错
-                    float3x3 tranRotaMatrix = mul(mul(windRotation, faceRotationMatrix), bendMatrix);
+                    float3x3 tranRotaMatrix = mul(mul(windRotation, faceRotationMatrix), mul(tangentToObjectMatrix, bendMatrix));
                     
                     //随机一个高度
                     float randHei = rand(randPos[i].yzw);
@@ -206,48 +206,48 @@
             
             }
 
-            [maxvertexcount(6)]
-            void geoms(point v2g input[1],inout TriangleStream<g2f> triStream)
-            {
-                float4 pos = input[0].vertex;
-
-                //随机密度
-                float w =  0.5 * _GrassAmount - rand(pos.xyz) * _GrassAmount;
-                //w = 1;
-
-                //--------------------------------------------------摇晃---------------------------------------------------------------------------
-                //
-                float3 worldPos = mul(unity_ObjectToWorld,  float4(pos.xyz * w, 1));
-
-                float dirZ = sin(worldPos.x * _Test + _Time.y * _WindFrequency.y);
-                
-                //生成摇晃旋转矩阵
-                float3x3 windRotation = AngleAxis3x3(UNITY_PI * dirZ * _WindStrength, float3(1, 0, 0));
-                //-----------------------------------------------------------------------------------------------------------------------------
-
-                //根据三角形位置生成一个随机旋转矩阵
-                float3x3 faceRotationMatrix = AngleAxis3x3(rand(pos.xyz) * UNITY_TWO_PI,float3(0, 1, 0));
-
-                float3x3 bendMatrix = AngleAxis3x3(rand(pos.zyx) * UNITY_TWO_PI * 0.5 * _GrassBend, float3(1, 0, 0));
-                
-                //合并矩阵，先旋转再转换，顺序不能错
-                float3x3 tranRotaMatrix = mul(mul(windRotation, faceRotationMatrix), bendMatrix);
-                
-                //随机一个高度
-                float randHei = rand(pos.yzw);
-
-
-
-                float3 leftButtomPos = pos * w + mul(faceRotationMatrix, float3(_GrassWid,0,0));
-                float3 rightButtomPos = pos * w + mul(faceRotationMatrix, float3(-_GrassWid,0,0));
-                float3 topPos = pos * w + mul(tranRotaMatrix, float3(0, _GrassHei * (randHei * _GrassHeiOffset + 1), 0));
-
-                triStream.Append(PerTriangle(leftButtomPos, float2(0, 0)));
-                triStream.Append(PerTriangle(rightButtomPos, float2(1, 0)));
-                triStream.Append(PerTriangle(topPos, float2(0.5,1)));
-                
-                triStream.RestartStrip();
-            }
+            // [maxvertexcount(6)]
+            // void geoms(point v2g input[1],inout TriangleStream<g2f> triStream)
+            // {
+            //     float4 pos = input[0].vertex;
+            //
+            //     //随机密度
+            //     float w =  0.5 * _GrassAmount - rand(pos.xyz) * _GrassAmount;
+            //     //w = 1;
+            //
+            //     //--------------------------------------------------摇晃---------------------------------------------------------------------------
+            //     //
+            //     float3 worldPos = mul(unity_ObjectToWorld,  float4(pos.xyz * w, 1));
+            //
+            //     float dirZ = sin(worldPos.x * _Test + _Time.y * _WindFrequency.y);
+            //     
+            //     //生成摇晃旋转矩阵
+            //     float3x3 windRotation = AngleAxis3x3(UNITY_PI * dirZ * _WindStrength, float3(1, 0, 0));
+            //     //-----------------------------------------------------------------------------------------------------------------------------
+            //
+            //     //根据三角形位置生成一个随机旋转矩阵
+            //     float3x3 faceRotationMatrix = AngleAxis3x3(rand(pos.xyz) * UNITY_TWO_PI,float3(0, 1, 0));
+            //
+            //     float3x3 bendMatrix = AngleAxis3x3(rand(pos.zyx) * UNITY_TWO_PI * 0.5 * _GrassBend, float3(1, 0, 0));
+            //     
+            //     //合并矩阵，先旋转再转换，顺序不能错
+            //     float3x3 tranRotaMatrix = mul(mul(windRotation, faceRotationMatrix), bendMatrix);
+            //     
+            //     //随机一个高度
+            //     float randHei = rand(pos.yzw);
+            //
+            //
+            //
+            //     float3 leftButtomPos = pos * w + mul(faceRotationMatrix, float3(_GrassWid,0,0));
+            //     float3 rightButtomPos = pos * w + mul(faceRotationMatrix, float3(-_GrassWid,0,0));
+            //     float3 topPos = pos * w + mul(tranRotaMatrix, float3(0, _GrassHei * (randHei * _GrassHeiOffset + 1), 0));
+            //
+            //     triStream.Append(PerTriangle(leftButtomPos, float2(0, 0)));
+            //     triStream.Append(PerTriangle(rightButtomPos, float2(1, 0)));
+            //     triStream.Append(PerTriangle(topPos, float2(0.5,1)));
+            //     
+            //     triStream.RestartStrip();
+            // }
 
             fixed4 frag (g2f i) : SV_Target
             {
