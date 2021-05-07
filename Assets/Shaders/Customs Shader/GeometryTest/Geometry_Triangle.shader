@@ -128,15 +128,15 @@
             {
                 float3 pos = input[0].vertex.xyz;
 
-                float3 bnormal = cross(input[0].normal,input[0].tangent) * input[0].tangent.w;
+                 float3 bnormal = cross(input[0].normal,input[0].tangent) * input[0].tangent.w;
                 
-                //切线空间转模型
-                float3x3 tangentToObjectMatrix =
-                float3x3(
-                    input[0].tangent.x, bnormal.x, input[0].normal.x,
-                    input[0].tangent.y, bnormal.y, input[0].normal.y,
-                    input[0].tangent.z, bnormal.z, input[0].normal.z
-                );
+                 //切线空间转模型
+                 float3x3 tangentToObjectMatrix =
+                 float3x3(
+                     input[0].tangent.x, bnormal.x, input[0].normal.x,
+                     input[0].tangent.y, bnormal.y, input[0].normal.y,
+                     input[0].tangent.z, bnormal.z, input[0].normal.z
+                 );
 
                 //float3 worldPos = mul(unity_ObjectToWorld, mul(tangentToObject, float4(pos.xyz, 1));
 
@@ -170,10 +170,8 @@
                     //根据三角形位置生成一个随机旋转矩阵
                     float3x3 faceRotationMatrix = AngleAxis3x3(rand(randPos[i].xyz) * UNITY_TWO_PI,float3(0, 1, 0));
 
-                    float3x3 bendMatrix = AngleAxis3x3(rand(randPos[i].zyx) * UNITY_TWO_PI * 0.5 * _GrassBend, float3(1, 0, 0));
-                    
                     //合并矩阵，先旋转再转换，顺序不能错
-                    float3x3 tranRotaMatrix = mul(mul(windRotation, faceRotationMatrix), mul(tangentToObjectMatrix, bendMatrix));
+                    float3x3 windFaceMatrix = mul(windRotation, faceRotationMatrix);
                     
                     //随机一个高度
                     float randHei = rand(randPos[i].yzw);
@@ -181,23 +179,30 @@
                     //高度计算
                     float tempHei = _GrassHei * (randHei * _GrassHeiOffset + 1);
                     
-                    float3 topPos = randPos[i].xyz * randPos[i].w + pos + mul(tranRotaMatrix, float3(0, tempHei * segment * segment, 0));
-
-
                     for (int j = 0; j < segment; j++)
 		            {
-			            //float t = j / (float)segment;
+			            float t = j / (float)segment;
 
 			            float segmentHeight = tempHei * 2 * j;
 			            float segmentWidth = _GrassWid + j * _GrassWid / (j + 1);
 
-			            float3 leftButtomPos = randPos[i].xyz * randPos[i].w + pos + mul(faceRotationMatrix, float3(segmentWidth, segmentHeight, 0));
-                        float3 rightButtomPos = randPos[i].xyz * randPos[i].w + pos + mul(faceRotationMatrix, float3(-segmentWidth, segmentHeight, 0));
+                        float3x3 bendMatrix = AngleAxis3x3(rand(randPos[i].zyx) * UNITY_TWO_PI * 0.5 * _GrassBend * j, float3(1, 0, 0));
 
-			            triStream.Append(PerTriangle(leftButtomPos, float2(0, 0)));
-                        triStream.Append(PerTriangle(rightButtomPos, float2(1, 0)));
+                        float3x3 tranRotaMatrix = mul(windFaceMatrix, bendMatrix);
+
+			            float3 leftButtomPos = randPos[i].xyz * randPos[i].w + pos + mul(tranRotaMatrix, float3(segmentWidth, segmentHeight, 0));
+                        float3 rightButtomPos = randPos[i].xyz * randPos[i].w + pos + mul(tranRotaMatrix, float3(-segmentWidth, segmentHeight, 0));
+
+			            triStream.Append(PerTriangle(leftButtomPos, float2(0, t)));
+                        triStream.Append(PerTriangle(rightButtomPos, float2(1, t)));
 		            }
-                     
+
+                    float3x3 bendMatrix = AngleAxis3x3(rand(randPos[i].zyx) * UNITY_TWO_PI * 0.5 * _GrassBend * segment, float3(1, 0, 0));
+                    
+                    float3x3 tranRotaMatrix = mul(windFaceMatrix, bendMatrix);
+                    
+                    float3 topPos = randPos[i].xyz * randPos[i].w + pos + mul(tranRotaMatrix, float3(0, tempHei * segment * segment, 0));
+                    
                     triStream.Append(PerTriangle(topPos, float2(0.5,1)));
                     
                     triStream.RestartStrip();
