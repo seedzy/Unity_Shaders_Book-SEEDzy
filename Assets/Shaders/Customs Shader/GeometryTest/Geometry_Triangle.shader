@@ -62,22 +62,24 @@
             {
                 float4 vertex : POSITION;
                 float2 uv : TEXCOORD0;
-                float3 normal : NORMAL;
+                //float3 normal : NORMAL;
                 float4 tangent : TANGENT;
             };
 
             struct v2g
             {
                 float4 vertex : SV_POSITION;
-                float3 normal : TEXCOORD1;
-                float2 uv : TEXCOORD2;
-                float4 tangent : TEXCOORD3;
+                //float3 normal : TEXCOORD1;
+                //float2 uv : TEXCOORD2;
+                //float4 tangent : TEXCOORD3;
             };
 
             struct g2f
             {
                 float4 vertex : SV_POSITION;
                 float2 uv : TEXCOORD2;
+                float3 worldNormal : TEXCOORD3;
+                float4 worldPos : TEXCOORD4;
             };
 
 
@@ -86,8 +88,8 @@
             {
                 v2g o;
                 o.vertex = v.vertex;
-                o.normal = v.normal;
-                o.tangent = v.tangent;
+                //o.normal = v.normal;
+                //o.tangent = v.tangent;
                 return o;
             }
 
@@ -114,11 +116,13 @@
                 );
             }
 
-            g2f PerTriangle(float3 pos,float2 uv)
+            g2f PerTriangle(float3 pos,float2 uv, float3 normal)
             {
                 g2f o;
                 o.vertex = UnityObjectToClipPos(pos);
                 o.uv = uv;
+                o.worldNormal = UnityObjectToWorldNormal(normalize(normal));
+                o.worldPos = mul(unity_ObjectToWorld, pos);
                 return  o;
             }
             
@@ -128,29 +132,29 @@
             {
                 float3 pos = input[0].vertex.xyz;
 
-                 float3 bnormal = cross(input[0].normal,input[0].tangent) * input[0].tangent.w;
-                
-                 //切线空间转模型
-                 float3x3 tangentToObjectMatrix =
-                 float3x3(
-                     input[0].tangent.x, bnormal.x, input[0].normal.x,
-                     input[0].tangent.y, bnormal.y, input[0].normal.y,
-                     input[0].tangent.z, bnormal.z, input[0].normal.z
-                 );
+                 // float3 bnormal = cross(input[0].normal,input[0].tangent) * input[0].tangent.w;
+                 //
+                 // //切线空间转模型
+                 // float3x3 tangentToObjectMatrix =
+                 // float3x3(
+                 //     input[0].tangent.x, bnormal.x, input[0].normal.x,
+                 //     input[0].tangent.y, bnormal.y, input[0].normal.y,
+                 //     input[0].tangent.z, bnormal.z, input[0].normal.z
+                 // );
 
                 //float3 worldPos = mul(unity_ObjectToWorld, mul(tangentToObject, float4(pos.xyz, 1));
 
                 float4 randPos[10];
-                for(int i = 0; i< 10; i++)
+                for(int k = 0; k< 10; k++)
                 {
-                    randPos[i].x = rand(pos.xxx + float3(1, 1, 1) * i);
-                    randPos[i].y = rand(pos.yyy + float3(1, 1, 1) * i);
-                    randPos[i].z = rand(pos.zzz + float3(1, 1, 1) * i);
+                    randPos[k].x = rand(pos.xxx + float3(1, 1, 1) * k);
+                    randPos[k].y = rand(pos.yyy + float3(1, 1, 1) * k);
+                    randPos[k].z = rand(pos.zzz + float3(1, 1, 1) * k);
                     //距离
-                    randPos[i].w = 0.5 * _GrassAmount - rand(randPos[i].xyz) * _GrassAmount;
+                    randPos[k].w = 0.5 * _GrassAmount - rand(randPos[k].xyz) * _GrassAmount;
                     
-                    randPos[i].xyz = normalize(randPos[i].xyz);
-                    randPos[i].y = 0;
+                    randPos[k].xyz = normalize(randPos[k].xyz);
+                    randPos[k].y = 0;
                 }
 
                 for(int i = 0; i< 10; i++)
@@ -193,8 +197,10 @@
 			            float3 leftButtomPos = randPos[i].xyz * randPos[i].w + pos + mul(tranRotaMatrix, float3(segmentWidth, segmentHeight, 0));
                         float3 rightButtomPos = randPos[i].xyz * randPos[i].w + pos + mul(tranRotaMatrix, float3(-segmentWidth, segmentHeight, 0));
 
-			            triStream.Append(PerTriangle(leftButtomPos, float2(0, t)));
-                        triStream.Append(PerTriangle(rightButtomPos, float2(1, t)));
+                        float3 normal = mul(tranRotaMatrix, float3(0, _GrassBend * j, 1));
+
+			            triStream.Append(PerTriangle(leftButtomPos, float2(0, t), normal));
+                        triStream.Append(PerTriangle(rightButtomPos, float2(1, t), normal));
 		            }
 
                     float3x3 bendMatrix = AngleAxis3x3(rand(randPos[i].zyx) * UNITY_TWO_PI * 0.5 * _GrassBend * segment, float3(1, 0, 0));
@@ -202,8 +208,10 @@
                     float3x3 tranRotaMatrix = mul(windFaceMatrix, bendMatrix);
                     
                     float3 topPos = randPos[i].xyz * randPos[i].w + pos + mul(tranRotaMatrix, float3(0, tempHei * segment * segment, 0));
+
+                    float3 normal = mul(tranRotaMatrix, float3(0, _GrassBend * segment, 1));
                     
-                    triStream.Append(PerTriangle(topPos, float2(0.5,1)));
+                    triStream.Append(PerTriangle(topPos, float2(0.5,1), normal));
                     
                     triStream.RestartStrip();
                 }
@@ -254,11 +262,13 @@
             //     triStream.RestartStrip();
             // }
 
-            fixed4 frag (g2f i) : SV_Target
+            fixed4 frag (g2f i, fixed facing : VFACE) : SV_Target
             {
+                float3 normal = facing > 0 ? -i.worldNormal : i.worldNormal;
                 float offset = smoothstep(0, _GrassColOffset,i.uv.y);
                 fixed3 finCol = offset* _GrassCol + (1 - offset) * _GrassButtomCol;
-                return fixed4(finCol.rgb, 1);
+                fixed3 diff = (0.5 * dot(normalize(normal), normalize(WorldSpaceLightDir(i.worldPos))) + 0.5) * _LightColor0 * finCol;
+                return fixed4(diff.rgb, 1);
             }
             ENDCG
         }
