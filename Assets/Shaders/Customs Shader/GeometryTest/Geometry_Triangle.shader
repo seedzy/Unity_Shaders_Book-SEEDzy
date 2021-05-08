@@ -17,7 +17,7 @@
         _WindFrequency("摇晃频率", vector) = (1, 1, 0,0)
         _WindStrength("摇晃强度", float) = 1
         
-        _Test("test", float) = 1
+        _Test("Sin频率？", float) = 1
     }
     SubShader
     {
@@ -90,6 +90,7 @@
                 o.vertex = v.vertex;
                 //o.normal = v.normal;
                 //o.tangent = v.tangent;
+                
                 return o;
             }
 
@@ -122,7 +123,7 @@
                 o.vertex = UnityObjectToClipPos(pos);
                 o.uv = uv;
                 o.worldNormal = UnityObjectToWorldNormal(normalize(normal));
-                o.worldPos = mul(unity_ObjectToWorld, pos);
+                o.worldPos = mul(unity_ObjectToWorld, float4(pos, 1));
                 return  o;
             }
             
@@ -219,55 +220,14 @@
             
             }
 
-            // [maxvertexcount(6)]
-            // void geoms(point v2g input[1],inout TriangleStream<g2f> triStream)
-            // {
-            //     float4 pos = input[0].vertex;
-            //
-            //     //随机密度
-            //     float w =  0.5 * _GrassAmount - rand(pos.xyz) * _GrassAmount;
-            //     //w = 1;
-            //
-            //     //--------------------------------------------------摇晃---------------------------------------------------------------------------
-            //     //
-            //     float3 worldPos = mul(unity_ObjectToWorld,  float4(pos.xyz * w, 1));
-            //
-            //     float dirZ = sin(worldPos.x * _Test + _Time.y * _WindFrequency.y);
-            //     
-            //     //生成摇晃旋转矩阵
-            //     float3x3 windRotation = AngleAxis3x3(UNITY_PI * dirZ * _WindStrength, float3(1, 0, 0));
-            //     //-----------------------------------------------------------------------------------------------------------------------------
-            //
-            //     //根据三角形位置生成一个随机旋转矩阵
-            //     float3x3 faceRotationMatrix = AngleAxis3x3(rand(pos.xyz) * UNITY_TWO_PI,float3(0, 1, 0));
-            //
-            //     float3x3 bendMatrix = AngleAxis3x3(rand(pos.zyx) * UNITY_TWO_PI * 0.5 * _GrassBend, float3(1, 0, 0));
-            //     
-            //     //合并矩阵，先旋转再转换，顺序不能错
-            //     float3x3 tranRotaMatrix = mul(mul(windRotation, faceRotationMatrix), bendMatrix);
-            //     
-            //     //随机一个高度
-            //     float randHei = rand(pos.yzw);
-            //
-            //
-            //
-            //     float3 leftButtomPos = pos * w + mul(faceRotationMatrix, float3(_GrassWid,0,0));
-            //     float3 rightButtomPos = pos * w + mul(faceRotationMatrix, float3(-_GrassWid,0,0));
-            //     float3 topPos = pos * w + mul(tranRotaMatrix, float3(0, _GrassHei * (randHei * _GrassHeiOffset + 1), 0));
-            //
-            //     triStream.Append(PerTriangle(leftButtomPos, float2(0, 0)));
-            //     triStream.Append(PerTriangle(rightButtomPos, float2(1, 0)));
-            //     triStream.Append(PerTriangle(topPos, float2(0.5,1)));
-            //     
-            //     triStream.RestartStrip();
-            // }
 
             fixed4 frag (g2f i, fixed facing : VFACE) : SV_Target
             {
+                fixed3 abedo = tex2D(_MainTex, (i.worldPos.xz * _MainTex_ST.xy + _MainTex_ST.zw)/200);
                 float3 normal = facing > 0 ? -i.worldNormal : i.worldNormal;
-                float offset = smoothstep(0, _GrassColOffset,i.uv.y);
-                fixed3 finCol = offset* _GrassCol + (1 - offset) * _GrassButtomCol;
-                fixed3 diff = (0.5 * dot(normalize(normal), normalize(WorldSpaceLightDir(i.worldPos))) + 0.5) * _LightColor0 * finCol;
+                //float offset = smoothstep(0, _GrassColOffset,i.uv.y);
+                //fixed3 finCol = offset* _GrassCol + (1 - offset) * _GrassButtomCol;
+                fixed3 diff = (0.5 * dot(normalize(normal), normalize(WorldSpaceLightDir(i.worldPos))) + 0.5) * _LightColor0 * abedo;
                 return fixed4(diff.rgb, 1);
             }
             ENDCG
