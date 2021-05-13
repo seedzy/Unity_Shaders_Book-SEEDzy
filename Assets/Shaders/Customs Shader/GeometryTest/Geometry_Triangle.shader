@@ -220,7 +220,7 @@
             
             }
 
-
+            
             fixed4 frag (g2f i, fixed facing : VFACE) : SV_Target
             {
                 fixed3 abedo = tex2D(_MainTex, (i.worldPos.xz * _MainTex_ST.xy + _MainTex_ST.zw)/200);
