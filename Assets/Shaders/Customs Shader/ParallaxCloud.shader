@@ -56,6 +56,8 @@
                 float3 tangentViewDir : TEXCOORD2;
                 float3 normalDir : TEXCOORD3;
                 float3 worldPos : TEXCOORD4;
+                float4 color : TEXCOORD5;
+                UNITY_FOG_COORDS(6)
                 
                 float4 pos : SV_POSITION;
             };
@@ -66,12 +68,15 @@
             {
                 v2f o;
                 o.pos = UnityObjectToClipPos(v.vertex);
-                o.uv = TRANSFORM_TEX(v.texcoord, _MainTex) + float2(frac(_Time.y * 0.1), 0);
+                //o.uv = TRANSFORM_TEX(v.texcoord, _MainTex) + float2(frac(_Time.y * 0.1), 0);
+                o.uv = TRANSFORM_TEX(v.texcoord, _MainTex);
                 o.uv2 = v.texcoord;
                 TANGENT_SPACE_ROTATION;
                 o.tangentViewDir = mul(rotation, ObjSpaceViewDir(v.vertex));
                 o.worldPos = mul(unity_ObjectToWorld, v.vertex);
                 o.normalDir = UnityObjectToWorldNormal(v.normal);
+                UNITY_TRANSFER_FOG(o, o.pos);
+                o.color = v.color;
                 
                 return o;
             }
@@ -79,44 +84,63 @@
             float4 frag (v2f i) : COLOR
             {
                 float3 tangentViewDir = normalize(i.tangentViewDir);
-                //干嘛的？
-                tangentViewDir.xy *= _HeightOffset;
+
+                //切线空间下视角交点的的采样坐标
+                float2 tangentUV = i.uv;
+
+                //交点对高度图采样高度
+                float intersectionHei = tex2D(_MainTex, i.uv);
+
+                //采样点偏移量
+                float2 samplerOffset = (tangentViewDir.xy * intersectionHei)/tangentViewDir.z;
+
+                //实际的采样点
+                float2 currentUV = tangentUV + samplerOffset * _HeightOffset;
+
+                //实际的采样高度
+                float currentHei = tex2D(_MainTex, currentUV);
                 
-                //为什么能抗狗牙？
-                tangentViewDir.z += 0.4;
-                
-                //这又是要干嘛
-                float3 uv = float3(i.uv, 0);
-                float3 uv2 = float3(i.uv2, 0);
-                // sample the texture
-                float4 MainCol = tex2D(_MainTex, uv2.xy);
-                
-                //层间距
-                float3 minOffset = tangentViewDir / (tangentViewDir.z * _StepLayers);
-                
-                float finiNoise = tex2D(_MainTex, uv.xy).r * MainCol.r;
-                
-                float3 pre_uv = uv;
+                return float4(currentHei, currentHei, currentHei, i.color.a);
 
                 
-                
-                while (finiNoise > uv.z)
-                {
-                    uv += minOffset;
-                
-                    finiNoise = tex2Dlod(_MainTex, float4(uv.xy, 0 ,0)).r * MainCol.r;
-                 }
-                
-                float d1 = finiNoise - uv.z;
-                float d2 = finiNoise - pre_uv.z;
-                float w = d1 / (d1 - d2 + 0.00000001);
-                uv = lerp(uv, pre_uv, w);
-                half4 resultColor = tex2D(_MainTex, uv.xy) * MainCol;
-
-                half rangClt = MainCol.a * resultColor.r + _Alpha * 0.75;
-                half alpha = abs(smoothstep(rangClt, _Alpha, 1.0));
-                alpha = alpha * alpha * alpha * alpha * alpha;
-                return half4(resultColor.rgb * _Color.rgb * _LightColor0.rgb, alpha);
+                // //干嘛的？
+                // tangentViewDir.xy *= _HeightOffset;
+                //
+                // //为什么能抗狗牙？
+                // tangentViewDir.z += 0.4;
+                //
+                // //这又是要干嘛
+                // float3 uv = float3(i.uv, 0);
+                // float3 uv2 = float3(i.uv2, 0);
+                // // sample the texture
+                // float4 MainCol = tex2D(_MainTex, uv2.xy);
+                //
+                // //层间距
+                // float3 minOffset = tangentViewDir / (tangentViewDir.z * _StepLayers);
+                //
+                // float finiNoise = tex2D(_MainTex, uv.xy).r * MainCol.r;
+                //
+                // float3 pre_uv = uv;
+                //
+                //
+                //
+                // while (finiNoise > uv.z)
+                // {
+                //     uv += minOffset;
+                //
+                //     finiNoise = tex2Dlod (_MainTex, float4(uv.xy, 0 ,0)).r * MainCol.r;
+                //  }
+                //
+                // float d1 = finiNoise - uv.z;
+                // float d2 = finiNoise - pre_uv.z;
+                // float w = d1 / (d1 - d2 + 0.00000001);
+                // uv = lerp(uv, pre_uv, w);
+                // half4 resultColor = tex2D(_MainTex, uv.xy) * MainCol;
+                //
+                // half rangClt = MainCol.a * resultColor.r + _Alpha * 0.75;
+                // half alpha = abs(smoothstep(rangClt, _Alpha, 1.0));
+                // alpha = alpha * alpha * alpha * alpha * alpha;
+                // return half4(resultColor.rgb * _Color.rgb * _LightColor0.rgb, alpha);
             }
             ENDCG
         }
