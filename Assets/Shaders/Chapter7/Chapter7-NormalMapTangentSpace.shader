@@ -81,7 +81,7 @@ Shader "Unity Shaders Book/Chapter 7/Normal Map In Tangent Space" {
 				
 				o.uv.xy = v.texcoord.xy * _MainTex_ST.xy + _MainTex_ST.zw;
 				o.uv.zw = v.texcoord.xy * _BumpMap_ST.xy + _BumpMap_ST.zw;
-
+				TANGENT_SPACE_ROTATION
 				///
 				/// Note that the code below can handle both uniform and non-uniform scales
 				///

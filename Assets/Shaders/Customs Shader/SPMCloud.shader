@@ -5,7 +5,7 @@
         _MainTex ("Texture", 2D) = "white" {}
         //_BumpMap ("视差图", 2D) = "white" {}
         _HeightOffset("Hei", float) = 0.15
-        _StepLayers("层数", Range(0, 128)) = 16
+        _StepLayers("层数", Range(0, 1024)) = 16
         _Alpha("A", Range(0,1)) = 0.5
         [HDR]
         _Color("color", Color) = (1, 1, 1, 1)
@@ -104,7 +104,7 @@
                     samplerHei = tex2Dlod(_MainTex, float4(uv.xy, 0 ,0)) * finCol;
                  }
 
-                fixed4 finiCol = tex2D(_MainTex, uv.xy) * finCol;// * _LightColor0;
+                fixed4 finiCol = tex2D(_MainTex, uv.xy)* finCol;// * _LightColor0;
 
                 
                 return fixed4(finiCol.xyz + _Color, smoothstep(_AlphaSwitch, 1 ,_Alpha * finiCol.r));

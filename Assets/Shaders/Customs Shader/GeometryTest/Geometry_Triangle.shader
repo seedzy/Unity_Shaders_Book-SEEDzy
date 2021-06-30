@@ -16,12 +16,14 @@
         _WindMap("摇晃法线贴图", 2D) = "white" {}
         _WindFrequency("摇晃频率", vector) = (1, 1, 0,0)
         _WindStrength("摇晃强度", float) = 1
+        _TransmissionPow("透射光强度", float) = 1
+        _TransmissionRange("透射光范围", float) = 8
         
         _Test("Sin频率？", float) = 1
     }
     SubShader
     {
-        Tags { "RenderType"="Opaque" }
+        Tags { "RenderType"="Opaque" "LightMode" = "ForwardBase"}
         LOD 100
 
         Pass
@@ -49,6 +51,8 @@
             float _GrassAmount;
             float _GrassHeiOffset;
             float _Test;
+            float _TransmissionPow;
+            float _TransmissionRange;
 
             sampler2D _WindMap;
             float4 _WindMap_ST;
@@ -221,14 +225,19 @@
             }
 
             
-            fixed4 frag (g2f i, fixed facing : VFACE) : SV_Target
+            fixed4 frag (g2f i) : SV_Target
             {
                 fixed3 abedo = tex2D(_MainTex, (i.worldPos.xz * _MainTex_ST.xy + _MainTex_ST.zw)/200);
-                float3 normal = facing > 0 ? -i.worldNormal : i.worldNormal;
+                //float3 normal = facing > 0 ? -i.worldNormal : i.worldNormal;
                 //float offset = smoothstep(0, _GrassColOffset,i.uv.y);
                 //fixed3 finCol = offset* _GrassCol + (1 - offset) * _GrassButtomCol;
-                fixed3 diff = (0.5 * dot(normalize(normal), normalize(WorldSpaceLightDir(i.worldPos))) + 0.5) * _LightColor0 * abedo;
-                return fixed4(diff.rgb, 1);
+                //fixed3 diff = (0.5 * dot(normalize(normal), normalize(WorldSpaceLightDir(i.worldPos))) + 0.5) * _LightColor0 * abedo;
+                half3 viewDirWS = normalize(_WorldSpaceCameraPos - i.worldPos); 
+                half3 transmission = saturate(pow(dot(viewDirWS, -WorldSpaceLightDir(i.worldPos)), _TransmissionRange) * lerp(_LightColor0, abedo, 0.9) * _TransmissionPow);
+                
+                //return fixed4(transmission.rgb, 1);
+                return fixed4(abedo.rgb * _LightColor0 * 0.6 + transmission, 1);
+                //return fixed4(abedo.rgb, 1);
             }
             ENDCG
         }
