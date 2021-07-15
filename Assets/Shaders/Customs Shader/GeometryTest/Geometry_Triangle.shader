@@ -14,7 +14,7 @@
         _GrassAmount("密度", Range(0, 20)) = 5
 
         _WindMap("摇晃法线贴图", 2D) = "white" {}
-        _WindFrequency("摇晃频率", vector) = (1, 1, 0,0)
+        _WindFrequency("y is TimeSacle", vector) = (1, 1, 0,0)
         _WindStrength("摇晃强度", float) = 1
         _TransmissionPow("透射光强度", float) = 1
         _TransmissionRange("透射光范围", float) = 8
@@ -38,6 +38,7 @@
             #include "Lighting.cginc"
 
             #define segment 3
+            #define grassNum 1
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
@@ -132,7 +133,7 @@
             }
             
             //设置单次操作最大顶点输出数，尽量低于20
-            [maxvertexcount(30)]
+            [maxvertexcount(grassNum * 7)]
             void geom(triangle v2g input[3],inout TriangleStream<g2f> triStream)
             {
                 float3 pos = input[0].vertex.xyz;
@@ -149,8 +150,8 @@
 
                 //float3 worldPos = mul(unity_ObjectToWorld, mul(tangentToObject, float4(pos.xyz, 1));
 
-                float4 randPos[10];
-                for(int k = 0; k< 10; k++)
+                float4 randPos[grassNum];
+                for(int k = 0; k< grassNum; k++)
                 {
                     randPos[k].x = rand(pos.xxx + float3(1, 1, 1) * k);
                     randPos[k].y = rand(pos.yyy + float3(1, 1, 1) * k);
@@ -162,7 +163,7 @@
                     randPos[k].y = 0;
                 }
 
-                for(int i = 0; i< 10; i++)
+                for(int i = 0; i< grassNum; i++)
                 {
                     //--------------------------------------------------摇晃---------------------------------------------------------------------------
                     //
