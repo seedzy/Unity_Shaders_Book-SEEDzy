@@ -18,7 +18,7 @@ Shader "Unity Shaders Book/Chapter 8/Alpha Blending With ZWrite" {
 		
 		Pass {
 			Tags { "LightMode"="ForwardBase" }
-			
+
 			ZWrite Off
 			Blend SrcAlpha OneMinusSrcAlpha
 			
